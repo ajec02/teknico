@@ -1,5 +1,29 @@
 # ✅ Problemas Corrigidos - Registo de Logs de Resolução
 
+## [v1.1.0] - 2026-08-06
+
+- ✅ **Implementação da Landing Page Extravagante do Sistema (`lib/screens/landing_page_screen.dart`)**:
+  - **Requisito**: Desenvolver uma Landing Page pública e elegante para apresentação das capacidades do sistema (multi-conexões guardadas, CRUD de tabelas, auditoria em tempo real, relatórios PDF com QR code) com botão "Aceder ao Sistema".
+  - **Solução**: Criada a ecrã `LandingPageScreen` com estética Hyper POS (escuro com acentos a laranja `#FFFF6B00`), banner hero, cartões de recursos e navegação para a ecrã de Login.
+
+- ✅ **Implementação do Ecrã de Login com Suporte a MTeste e MProducao (`lib/screens/login_screen.dart`)**:
+  - **Requisito**: Permitir autenticação de utilizadores com suporte para os modos `MTeste` (cartões de clique único para acesso rápido de testes) e `MProducao` (formulário seguro com credenciais manuais).
+  - **Solução**: Desenvolvido o `LoginScreen` com alternador entre Modo Teste e Modo Produção, cartões de utilizadores predefinidos (Super Admin, Administrador, Técnico) em `MTeste` e formulário de login responsivo com alerta de erro via `CustomModal`.
+
+- ✅ **Implementação do Gerenciador de Múltiplas Conexões Guardadas (`lib/screens/saved_connections_screen.dart`)**:
+  - **Requisito**: Disponibilizar um painel pós-login onde o utilizador pode visualizar, criar, editar, testar e eliminar conexões MySQL guardadas (suportando endereços, portas, utilizadores e palavras-passe diferentes), apresentando as bases de dados específicas da conexão seleccionada ao conectar.
+  - **Solução**: Criado o `SavedConnectionsScreen` com botão **"+ Nova Conexão"**, diálogo modal para adição/edição de perfis, botão de teste de conexão individual com feedback modal e ação "Ligar ao MySQL" que estabelece ligação e redireciona para o Dashboard daquela conexão.
+
+- ✅ **Persistência de Conexões Guardadas e Sessão de Utilizador (`lib/models/saved_connection.dart` & `lib/providers/app_state.dart`)**:
+  - **Requisito**: Armazenar as conexões guardadas e o estado de sessão de utilizador em `SharedPreferences`.
+  - **Solução**: Criado o modelo `SavedConnection` com suporte a serialização/deserialização JSON e adicionado ao `AppState` métodos de CRUD (`saveConnection`, `deleteConnection`, `login`, `logout`, `toggleTestMode`) garantindo que as conexões fiquem salvas para utilizações futuras.
+
+- ✅ **Atualização do Dashboard para Exibição da Conexão Ativa (`lib/screens/dashboard_screen.dart`)**:
+  - **Requisito**: Exibir um badge com o host:porta e utilizador do servidor MySQL ao qual o sistema se encontra ligado, com um atalho rápido para alterar ou adicionar novas conexões.
+  - **Solução**: Adicionado badge dinâmico no cabeçalho com indicador verde de servidor online, dados da conexão e botão "CONEXÕES" para alternar rapidamente entre servidores.
+
+---
+
 ## [v1.0.0] - 2026-08-06
 
 - ✅ **Posicionamento do Logótipo SUPORTE e Seletor de Base de Dados na Barra Superior**:
@@ -38,4 +62,3 @@
 - ✅ **Implementação do Campo de Pesquisa em Tempo Real para Tabelas (`DashboardScreen` Sidebar)**:
   - **Requisito**: Permitir filtrar a lista de tabelas da base de dados ativa rapidamente no menu lateral quando existir um grande volume de tabelas.
   - **Solução**: Adicionado o campo de texto `Pesquisar tabela...` com ícone de lupa, botão de limpeza rápida (`X`) e filtragem insensível a maiúsculas/minúsculas diretamente na barra lateral, além da sincronização em tempo real com a barra de pesquisa do topo (`Ctrl+K`).
-

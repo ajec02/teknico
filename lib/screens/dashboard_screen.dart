@@ -32,11 +32,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     final isDark = appState.isDarkMode;
+    final user = appState.currentUser;
+    final config = appState.config;
     const accentColor = Color(0xFFFF6B00);
 
     if (!appState.isConnected) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacementNamed('/connection');
+        if (appState.isLoggedIn) {
+          Navigator.of(context).pushReplacementNamed('/connections');
+        } else {
+          Navigator.of(context).pushReplacementNamed('/login');
+        }
       });
       return const Scaffold();
     }
@@ -47,7 +53,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Column(
             children: [
-              // Barra Superior (Header Bar com Logótipo SUPORTE e Seletor de Base de Dados)
+              // Barra Superior (Header Bar com Logótipo SUPORTE, Conexão Ativa e Seletor de BD)
               Container(
                 height: 64,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -61,44 +67,105 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 child: Row(
                   children: [
-                    // Brand Logo Badge (TEKNICO)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: accentColor,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: accentColor.withValues(alpha: 0.35),
-                            blurRadius: 12,
-                          )
-                        ],
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.dns_rounded, color: Colors.white, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'TEKNICO',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 15,
-                              color: Colors.white,
-                              letterSpacing: 1.2,
+                    // Brand Logo Badge (SUPORTE OS)
+                    InkWell(
+                      onTap: () => Navigator.of(context).pushNamed('/'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: accentColor,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: accentColor.withValues(alpha: 0.35),
+                              blurRadius: 12,
+                            )
+                          ],
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.storage_rounded, color: Colors.white, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              'SUPORTE OS',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 14,
+                                color: Colors.white,
+                                letterSpacing: 1.1,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 14),
                     Container(
                       height: 24,
                       width: 1,
                       color: isDark ? const Color(0xFF22242B) : const Color(0xFFE5E7EB),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 14),
 
-                    // Seletor de Base de Dados (SearchableDropdown na Barra Superior)
+                    // Badge da Conexão Ativa (com botão para Alternar Conexão)
+                    Tooltip(
+                      message: 'Conectado a ${config.user}@${config.host}:${config.port}',
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context).pushNamed('/connections');
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF18191E) : const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF2A2C35) : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF10B981),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '${config.host}:${config.port}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? Colors.white : const Color(0xFF111827),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Utilizador: ${config.user}',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.swap_horiz_rounded, size: 16, color: accentColor),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+
+                    // Seletor de Base de Dados (SearchableDropdown)
                     SizedBox(
                       width: 210,
                       child: SearchableDropdown<String>(
@@ -125,42 +192,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(width: 12),
 
-                    // Badge Estado Ao Vivo
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Ao vivo',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF10B981),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
                     const Spacer(),
 
                     // Barra de Pesquisa Rápida Central no Topo
                     Container(
-                      width: 300,
+                      width: 260,
                       height: 38,
                       decoration: BoxDecoration(
                         color: isDark ? const Color(0xFF18191E) : const Color(0xFFF9FAFB),
@@ -183,7 +219,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           color: isDark ? Colors.white : const Color(0xFF111827),
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Pesquisar registos, tabelas...',
+                          hintText: 'Pesquisar registos...',
                           hintStyle: TextStyle(
                             fontSize: 12,
                             color: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
@@ -193,24 +229,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             size: 16,
                             color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
                           ),
-                          suffixIcon: Padding(
-                            padding: const EdgeInsets.all(6),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF22242B) : const Color(0xFFE5E7EB),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'Ctrl+K',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                                ),
-                              ),
-                            ),
-                          ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(vertical: 8),
                         ),
@@ -219,9 +237,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     const Spacer(),
 
-                    // Ações do Utilizador & Alternador de Tema
+                    // Botão Minhas Conexões + Perfil de Utilizador & Tema
                     Row(
                       children: [
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.hub_rounded, size: 16),
+                          label: const Text('CONEXÕES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: accentColor.withValues(alpha: 0.15),
+                            foregroundColor: accentColor,
+                            elevation: 0,
+                            side: BorderSide(color: accentColor.withValues(alpha: 0.4)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pushNamed('/connections');
+                          },
+                        ),
+                        const SizedBox(width: 10),
+
                         IconButton(
                           icon: Icon(
                             isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
@@ -232,7 +267,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           tooltip: 'Alternar Modo Escuro / Claro',
                         ),
                         const SizedBox(width: 8),
-                        // Perfil do Utilizador
+
+                        // Perfil do Utilizador Autenticado
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -247,7 +283,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               CircleAvatar(
                                 radius: 14,
                                 backgroundColor: accentColor.withValues(alpha: 0.2),
-                                child: const Icon(Icons.person_rounded, size: 16, color: accentColor),
+                                child: Text(
+                                  (user?.name ?? 'A').substring(0, 1),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: accentColor),
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Column(
@@ -255,7 +294,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    appState.config.user,
+                                    user?.name ?? 'Utilizador',
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -263,7 +302,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                   ),
                                   Text(
-                                    'Administrador',
+                                    user?.roleDisplayName ?? 'Administrador',
                                     style: TextStyle(
                                       fontSize: 9,
                                       color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
@@ -544,7 +583,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           ),
                                         ),
                                         Text(
-                                          'v1.0.5 • MySQL 8.4',
+                                          '${config.host}:${config.port}',
                                           style: TextStyle(
                                             fontSize: 9,
                                             color: isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF),
@@ -559,9 +598,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       CustomModal.show(
                                         context: context,
                                         title: 'Desconectar Server',
-                                        message: 'Deseja terminar a sessão atual com o servidor MySQL?',
+                                        message: 'Deseja terminar a sessão atual com o servidor MySQL (${config.host}:${config.port})?',
                                         type: ModalType.confirm,
-                                        onConfirm: () => appState.disconnect(),
+                                        onConfirm: () {
+                                          appState.disconnect();
+                                          Navigator.of(context).pushReplacementNamed('/connections');
+                                        },
                                       );
                                     },
                                     tooltip: 'Desconectar',

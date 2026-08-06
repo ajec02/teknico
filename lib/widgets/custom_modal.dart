@@ -45,6 +45,26 @@ class CustomModal extends StatelessWidget {
     );
   }
 
+  static Future<bool?> showConfirm({
+    required BuildContext context,
+    required String title,
+    required String message,
+    ModalType type = ModalType.confirm,
+    String confirmText = 'Confirmar',
+    String cancelText = 'Cancelar',
+    VoidCallback? onConfirm,
+  }) {
+    return show(
+      context: context,
+      title: title,
+      message: message,
+      type: type,
+      confirmText: confirmText,
+      cancelText: cancelText,
+      onConfirm: onConfirm,
+    );
+  }
+
   Color _getPrimaryColor(bool isDark) {
     switch (type) {
       case ModalType.success:

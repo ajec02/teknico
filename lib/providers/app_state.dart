@@ -1,8 +1,11 @@
-// Estado Global da Aplicação Teknico (AppState Provider)
+// Estado Global da Aplicação Suporte OS (AppState Provider)
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/db_connection_config.dart';
+import '../models/saved_connection.dart';
+import '../models/user_account.dart';
 import '../models/table_schema.dart';
 import '../models/audit_log.dart';
 import '../services/mysql_service.dart';
@@ -21,7 +24,20 @@ class AppState extends ChangeNotifier {
   static const String _keyDbName = 'suporte_db_name';
   static const String _keyIsConnected = 'suporte_is_connected';
 
+  static const String _keyIsLoggedIn = 'suporte_is_logged_in';
+  static const String _keyCurrentUserId = 'suporte_current_user_id';
+  static const String _keyIsTestMode = 'suporte_is_test_mode';
+  static const String _keySavedConnections = 'suporte_saved_connections_json';
+
   final MySqlService _mysqlService = MySqlService();
+
+  // Autenticação e Utilizador
+  UserAccount? _currentUser;
+  bool _isLoggedIn = false;
+  bool _isTestMode = true; // MTeste ativado por defeito
+
+  // Conexões MySQL Guardadas
+  List<SavedConnection> _savedConnections = [];
 
   DbConnectionConfig? _currentConfig;
   bool _isConnected = false;
@@ -43,6 +59,11 @@ class AppState extends ChangeNotifier {
   int _activeViewIndex = 0; // 0: CRUD de Tabelas, 1: Histórico de Auditoria
 
   // Getters & Aliases de Compatibilidade
+  UserAccount? get currentUser => _currentUser;
+  bool get isLoggedIn => _isLoggedIn;
+  bool get isTestMode => _isTestMode;
+  List<SavedConnection> get savedConnections => List.unmodifiable(_savedConnections);
+
   DbConnectionConfig? get currentConfig => _currentConfig;
   DbConnectionConfig get config => _currentConfig ?? DbConnectionConfig(host: '127.0.0.1', port: 3306, user: 'root', password: 'Senha123', database: 'suporte_db');
 
@@ -73,6 +94,20 @@ class AppState extends ChangeNotifier {
     _selectedDatabase = prefs.getString(_keySelectedDb);
     _selectedTable = prefs.getString(_keySelectedTable);
 
+    // Carregar Estado de Autenticação e Modo MTeste
+    _isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
+    _isTestMode = prefs.getBool(_keyIsTestMode) ?? true;
+    final savedUserId = prefs.getString(_keyCurrentUserId);
+    if (savedUserId != null) {
+      _currentUser = UserAccount.testUsers.firstWhere(
+        (u) => u.id == savedUserId,
+        orElse: () => UserAccount.testUsers.first,
+      );
+    }
+
+    // Carregar Lista de Conexões Guardadas
+    await _loadSavedConnectionsInternal(prefs);
+
     final host = prefs.getString(_keyHost);
     if (host != null) {
       final config = DbConnectionConfig(
@@ -87,6 +122,131 @@ class AppState extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  /// Carregar conexões salvas das SharedPreferences
+  Future<void> _loadSavedConnectionsInternal(SharedPreferences prefs) async {
+    final rawJson = prefs.getString(_keySavedConnections);
+    if (rawJson != null && rawJson.isNotEmpty) {
+      try {
+        final List list = json.decode(rawJson);
+        _savedConnections = list.map((item) => SavedConnection.fromMap(item)).toList();
+      } catch (e) {
+        print("Erro ao deserializar conexões salvas: $e");
+        _initDefaultSavedConnections();
+      }
+    } else {
+      _initDefaultSavedConnections();
+    }
+  }
+
+  void _initDefaultSavedConnections() {
+    _savedConnections = [
+      SavedConnection(
+        id: 'conn_default_01',
+        name: 'Servidor Local (Desenvolvimento)',
+        host: '127.0.0.1',
+        port: 3306,
+        user: 'root',
+        password: 'Senha123',
+        database: 'suporte_db',
+      ),
+      SavedConnection(
+        id: 'conn_default_02',
+        name: 'Servidor Suporte Secundário',
+        host: 'localhost',
+        port: 3306,
+        user: 'root',
+        password: 'Senha123',
+        database: 'suporte_db',
+      ),
+    ];
+    _persistSavedConnections();
+  }
+
+  Future<void> _persistSavedConnections() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final listMap = _savedConnections.map((c) => c.toMap()).toList();
+      await prefs.setString(_keySavedConnections, json.encode(listMap));
+    } catch (e) {
+      print("Erro ao guardar conexões: $e");
+    }
+  }
+
+  /// Login com Seleção de Utilizador (Modo Teste / MTeste)
+  Future<void> login(UserAccount user) async {
+    _currentUser = user;
+    _isLoggedIn = true;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyIsLoggedIn, true);
+      await prefs.setString(_keyCurrentUserId, user.id);
+    } catch (_) {}
+  }
+
+  /// Login por Credenciais Manuais (Modo Produção / MProducao)
+  Future<bool> loginWithCredentials(String username, String password) async {
+    final match = UserAccount.testUsers.firstWhere(
+      (u) => u.username.toLowerCase() == username.trim().toLowerCase() || u.email.toLowerCase() == username.trim().toLowerCase(),
+      orElse: () => UserAccount(
+        id: 'usr_custom',
+        name: username.trim(),
+        email: '$username@suporte.ao',
+        username: username.trim(),
+        role: 'admin',
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      ),
+    );
+
+    if (password.isNotEmpty) {
+      await login(match);
+      return true;
+    }
+    return false;
+  }
+
+  /// Logout da Sessão
+  void logout() async {
+    _isLoggedIn = false;
+    _currentUser = null;
+    disconnect();
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyIsLoggedIn, false);
+      await prefs.remove(_keyCurrentUserId);
+    } catch (_) {}
+  }
+
+  /// Alternar entre Modo Teste (`MTeste`) e Modo Produção (`MProducao`)
+  void toggleTestMode(bool isTest) async {
+    _isTestMode = isTest;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyIsTestMode, isTest);
+    } catch (_) {}
+  }
+
+  /// Adicionar ou Atualizar Conexão Guardada
+  Future<void> saveConnection(SavedConnection connection) async {
+    final index = _savedConnections.indexWhere((c) => c.id == connection.id);
+    if (index >= 0) {
+      _savedConnections[index] = connection;
+    } else {
+      _savedConnections.insert(0, connection);
+    }
+    notifyListeners();
+    await _persistSavedConnections();
+  }
+
+  /// Eliminar Conexão Guardada
+  Future<void> deleteConnection(String connectionId) async {
+    _savedConnections.removeWhere((c) => c.id == connectionId);
+    notifyListeners();
+    await _persistSavedConnections();
   }
 
   void setActiveViewIndex(int index) async {
@@ -382,7 +542,7 @@ class AppState extends ChangeNotifier {
         tableName: _selectedTable!,
         columns: cols,
         records: _currentRecords,
-        emittedBy: 'root',
+        emittedBy: _currentUser?.name ?? 'root',
       );
     } finally {
       setLoading(false);

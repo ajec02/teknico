@@ -1,9 +1,11 @@
-// Ponto de Entrada Principal do Sistema Teknico OS em Flutter/Dart - Tema Hyper POS (Codecanyon)
+// Ponto de Entrada Principal do Sistema Suporte OS em Flutter/Dart - Tema Hyper POS
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/app_state.dart';
-import 'screens/connection_screen.dart';
+import 'screens/landing_page_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/saved_connections_screen.dart';
 import 'screens/dashboard_screen.dart';
 
 void main() async {
@@ -31,7 +33,7 @@ void main() async {
               const Icon(Icons.error_outline_rounded, size: 48, color: Color(0xFFFF6B00)),
               const SizedBox(height: 16),
               const Text(
-                'Ocorreu um Erro no Sistema Teknico OS',
+                'Ocorreu um Erro no Sistema Suporte OS',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               const SizedBox(height: 12),
@@ -50,21 +52,31 @@ void main() async {
   runApp(
     ChangeNotifierProvider.value(
       value: appState,
-      child: const TeknicoApp(),
+      child: const SuporteApp(),
     ),
   );
 }
 
-class TeknicoApp extends StatelessWidget {
-  const TeknicoApp({super.key});
+class SuporteApp extends StatelessWidget {
+  const SuporteApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
     final isDark = appState.isDarkMode;
 
+    // Determina a rota inicial baseada na sessão do utilizador
+    String initialRoute = '/';
+    if (appState.isLoggedIn) {
+      if (appState.isConnected) {
+        initialRoute = '/dashboard';
+      } else {
+        initialRoute = '/connections';
+      }
+    }
+
     return MaterialApp(
-      title: 'Teknico OS - Hyper POS Edition',
+      title: 'Suporte OS - Hyper POS Edition',
       debugShowCheckedModeBanner: false,
       themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
       
@@ -108,9 +120,11 @@ class TeknicoApp extends StatelessWidget {
         );
       },
 
-      initialRoute: appState.isConnected ? '/dashboard' : '/connection',
+      initialRoute: initialRoute,
       routes: {
-        '/connection': (context) => const ConnectionScreen(),
+        '/': (context) => const LandingPageScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/connections': (context) => const SavedConnectionsScreen(),
         '/dashboard': (context) => const DashboardScreen(),
       },
     );
