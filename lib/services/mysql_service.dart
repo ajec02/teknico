@@ -13,7 +13,10 @@ class MySqlService {
   DbConnectionConfig? _currentConfig;
   bool _isApiBridgeConnected = false;
 
-  static const String _apiBridgeBaseUrl = 'http://127.0.0.1:8085/api';
+  static String get _apiBridgeBaseUrl {
+    final host = Uri.base.host.isNotEmpty ? Uri.base.host : '127.0.0.1';
+    return 'http://$host:8085/api';
+  }
 
   bool get isConnected => _isApiBridgeConnected || (_connection != null && _connection!.connected);
   DbConnectionConfig? get currentConfig => _currentConfig;

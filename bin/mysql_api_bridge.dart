@@ -8,8 +8,8 @@ Map<String, dynamic>? gConfig;
 const String mysqlExePath = r'C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysql.exe';
 
 void main() async {
-  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 8085);
-  print('Ponte API MySQL do Teknico ativa em http://127.0.0.1:8085');
+  final server = await HttpServer.bind(InternetAddress.anyIPv4, 8085);
+  print('Ponte API MySQL do Teknico ativa em http://0.0.0.0:8085 (Rede Local Ativa)');
 
   await for (final request in server) {
     // Definir cabeçalhos CORS
