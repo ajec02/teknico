@@ -32,9 +32,9 @@
 - ✅ **Ordenação Descendente Padrão**: Apresenta sempre o **último registo cadastrado no topo da lista**.
 - ✅ **Dropdowns Pesquisáveis**: Componente `SearchableDropdown` em tempo real.
 - ✅ **Persistência Completa de Navegação e Menu ao Atualizar a Página (MenuT / Page Refresh)**:
-- ✅ **Suporte a Acesso em Rede Local (LAN / IP `192.168.1.171`) (`bin/mysql_api_bridge.dart` & `MySqlService`)**:
-  - **Causa**: A ponte API MySQL estava vinculada exclusivamente ao endereço local `127.0.0.1` (`loopbackIPv4`) e a URL base estava hardcoded em `127.0.0.1`, impedindo que outros computadores da rede local acedessem à aplicação e ao backend.
-  - **Solução**: Alterada a vinculação da API bridge para `InternetAddress.anyIPv4` (`0.0.0.0`) na porta `8085` e tornado o endereço base dinâmico em `MySqlService` via `Uri.base.host`, permitindo o acesso integral pela rede local em `http://192.168.1.171:8084` e API em `http://192.168.1.171:8085`.
+- ✅ **Mapeamento Automático do MySQL do Próprio Computador Cliente na Rede Local (`bin/mysql_api_bridge.dart`)**:
+  - **Causa**: Ao aceder ao sistema a partir de outro computador da rede local (ex: `192.168.1.50`), o formulário de conexão enviava o host padrão `127.0.0.1`. A ponte API no servidor principal executava o `mysql.exe -h 127.0.0.1` na sua própria máquina, acedendo aos dados do servidor em vez do MySQL do computador do próprio utilizador cliente.
+  - **Solução**: Atualizado o servidor `mysql_api_bridge.dart` para detetar o IP do cliente remoto (`request.connectionInfo.remoteAddress.address`). Quando o host solicitado for `127.0.0.1` ou `localhost` por um cliente externo na rede, a ponte API converte automaticamente `127.0.0.1` para o IP do próprio computador cliente (ex: `192.168.1.50`), ligando-se diretamente ao MySQL desse computador. Se o utilizador desejar ligar-se ao servidor principal, basta introduzir o IP do servidor (`192.168.1.171`) no campo *Endereço (Host / IP)*.
 - ✅ **Implementação do Campo de Pesquisa em Tempo Real para Tabelas (`DashboardScreen` Sidebar)**:
   - **Requisito**: Permitir filtrar a lista de tabelas da base de dados ativa rapidamente no menu lateral quando existir um grande volume de tabelas.
   - **Solução**: Adicionado o campo de texto `Pesquisar tabela...` com ícone de lupa, botão de limpeza rápida (`X`) e filtragem insensível a maiúsculas/minúsculas diretamente na barra lateral, além da sincronização em tempo real com a barra de pesquisa do topo (`Ctrl+K`).

@@ -101,11 +101,18 @@ String _decodeHex(String? hex) {
 }
 
 /// Executa query via CLI do mysql.exe com USE db automático
-Future<String?> _execMysqlCli(Map<String, dynamic> config, String sql, {String? db}) async {
-  final host = config['host'] ?? gConfig?['host'] ?? '127.0.0.1';
+Future<String?> _execMysqlCli(Map<String, dynamic> config, String sql, {String? db, HttpRequest? request}) async {
+  var host = config['host'] ?? gConfig?['host'] ?? '127.0.0.1';
   final port = (config['port'] ?? gConfig?['port'] ?? 3306).toString();
   final user = config['user'] ?? gConfig?['user'] ?? 'root';
   final pass = config['password'] ?? gConfig?['password'] ?? 'Senha123';
+
+  if (request != null) {
+    final clientIp = request.connectionInfo?.remoteAddress.address;
+    if ((host == '127.0.0.1' || host == 'localhost') && clientIp != null && clientIp != '127.0.0.1' && clientIp != '::1') {
+      host = clientIp;
+    }
+  }
 
   final fullSql = (db != null && db.isNotEmpty) ? 'USE `$db`; $sql' : sql;
 
@@ -122,16 +129,16 @@ Future<String?> _execMysqlCli(Map<String, dynamic> config, String sql, {String? 
   if (res.exitCode == 0) {
     return res.stdout.toString();
   } else {
-    print("MySQL CLI Warning/Error: ${res.stderr}");
+    print("MySQL CLI Warning/Error ($host:$port): ${res.stderr}");
     return res.stdout.toString().isNotEmpty ? res.stdout.toString() : null;
   }
 }
 
 Future<void> handleConnect(HttpRequest request, Map<String, dynamic> body) async {
   gConfig = body;
-  final out = await _execMysqlCli(body, "SHOW DATABASES;");
+  final out = await _execMysqlCli(body, "SHOW DATABASES;", request: request);
   if (out != null) {
-    await _execMysqlCli(body, "CREATE DATABASE IF NOT EXISTS `suporte_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+    await _execMysqlCli(body, "CREATE DATABASE IF NOT EXISTS `suporte_db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;", request: request);
     await _execMysqlCli(body, '''
       CREATE TABLE IF NOT EXISTS `suporte_db`.`historico_logs` (
         `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -144,7 +151,7 @@ Future<void> handleConnect(HttpRequest request, Map<String, dynamic> body) async
         `utilizador_sistema` VARCHAR(100) DEFAULT 'root',
         `criado_em` DATETIME DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    ''');
+    ''', request: request);
 
     sendResponse(request, {'success': true, 'message': 'Conectado ao MySQL com sucesso'});
   } else {
@@ -153,7 +160,7 @@ Future<void> handleConnect(HttpRequest request, Map<String, dynamic> body) async
 }
 
 Future<void> handleGetDatabases(HttpRequest request, Map<String, dynamic> body) async {
-  final out = await _execMysqlCli(body, "SHOW DATABASES;");
+  final out = await _execMysqlCli(body, "SHOW DATABASES;", request: request);
   final List<String> dbs = [];
 
   if (out != null) {
@@ -176,7 +183,7 @@ Future<void> handleGetDatabases(HttpRequest request, Map<String, dynamic> body) 
 
 Future<void> handleGetTables(HttpRequest request, Map<String, dynamic> body) async {
   final dbName = body['database'] ?? gConfig?['database'] ?? 'suporte_db';
-  final out = await _execMysqlCli(body, "SHOW TABLES;", db: dbName);
+  final out = await _execMysqlCli(body, "SHOW TABLES;", db: dbName, request: request);
   final List<String> tables = [];
 
   if (out != null) {
@@ -195,7 +202,7 @@ Future<void> handleGetTables(HttpRequest request, Map<String, dynamic> body) asy
 Future<void> handleGetSchema(HttpRequest request, Map<String, dynamic> body) async {
   final dbName = body['database'] ?? gConfig?['database'] ?? 'suporte_db';
   final tableName = body['table'];
-  final out = await _execMysqlCli(body, "DESCRIBE `$tableName`;", db: dbName);
+  final out = await _execMysqlCli(body, "DESCRIBE `$tableName`;", db: dbName, request: request);
   final List<Map<String, dynamic>> cols = [];
   String? pk;
 
@@ -240,7 +247,7 @@ Future<void> handleGetRecords(HttpRequest request, Map<String, dynamic> body) as
   final tableName = body['table'];
   final searchFilter = body['filter'];
 
-  final descOut = await _execMysqlCli(body, "DESCRIBE `$tableName`;", db: dbName);
+  final descOut = await _execMysqlCli(body, "DESCRIBE `$tableName`;", db: dbName, request: request);
   String? pk;
   final List<String> colNames = [];
 
@@ -272,7 +279,7 @@ Future<void> handleGetRecords(HttpRequest request, Map<String, dynamic> body) as
 
   query += " LIMIT 500;";
 
-  final out = await _execMysqlCli(body, query, db: dbName);
+  final out = await _execMysqlCli(body, query, db: dbName, request: request);
   final List<Map<String, dynamic>> records = [];
 
   if (out != null) {
@@ -318,11 +325,11 @@ Future<void> handleInsert(HttpRequest request, Map<String, dynamic> body) async 
   }
 
   final sql = "INSERT INTO `$tableName` (${cols.join(', ')}) VALUES (${vals.join(', ')});";
-  await _execMysqlCli(body, sql, db: dbName);
+  await _execMysqlCli(body, sql, db: dbName, request: request);
 
   final safeData = jsonEncode(data).replaceAll("'", "''");
   final logSql = "INSERT INTO `suporte_db`.`historico_logs` (`base_dados_alvo`, `tabela_alvo`, `registo_id`, `acao`, `dados_novos`, `utilizador_sistema`, `criado_em`) VALUES ('$dbName', '$tableName', 'NEW', 'INSERIR', '$safeData', 'root', NOW());";
-  await _execMysqlCli(body, logSql);
+  await _execMysqlCli(body, logSql, request: request);
 
   sendResponse(request, {'success': true});
 }
@@ -347,13 +354,13 @@ Future<void> handleUpdate(HttpRequest request, Map<String, dynamic> body) async 
   }
 
   final sql = "UPDATE `$tableName` SET ${setClauses.join(', ')} WHERE `$pkCol` = '$pkVal';";
-  final res = await _execMysqlCli(body, sql, db: dbName);
+  final res = await _execMysqlCli(body, sql, db: dbName, request: request);
 
   if (res != null) {
     final safeOld = jsonEncode(oldData).replaceAll("'", "''");
     final safeNew = jsonEncode(newData).replaceAll("'", "''");
     final logSql = "INSERT INTO `suporte_db`.`historico_logs` (`base_dados_alvo`, `tabela_alvo`, `registo_id`, `acao`, `dados_anteriores`, `dados_novos`, `utilizador_sistema`, `criado_em`) VALUES ('$dbName', '$tableName', '$pkVal', 'ATUALIZAR', '$safeOld', '$safeNew', 'root', NOW());";
-    await _execMysqlCli(body, logSql);
+    await _execMysqlCli(body, logSql, request: request);
   }
 
   sendResponse(request, {'success': true});
@@ -367,11 +374,11 @@ Future<void> handleDelete(HttpRequest request, Map<String, dynamic> body) async 
   final Map<String, dynamic> oldData = body['oldData'];
 
   final sql = "DELETE FROM `$tableName` WHERE `$pkCol` = '$pkVal';";
-  await _execMysqlCli(body, sql, db: dbName);
+  await _execMysqlCli(body, sql, db: dbName, request: request);
 
   final safeOld = jsonEncode(oldData).replaceAll("'", "''");
   final logSql = "INSERT INTO `suporte_db`.`historico_logs` (`base_dados_alvo`, `tabela_alvo`, `registo_id`, `acao`, `dados_anteriores`, `utilizador_sistema`, `criado_em`) VALUES ('$dbName', '$tableName', '$pkVal', 'ELIMINAR', '$safeOld', 'root', NOW());";
-  await _execMysqlCli(body, logSql);
+  await _execMysqlCli(body, logSql, request: request);
 
   sendResponse(request, {'success': true});
 }
@@ -386,7 +393,7 @@ Future<void> handleGetLogs(HttpRequest request, Map<String, dynamic> body) async
   }
   sql += " ORDER BY `id` DESC LIMIT 500;";
 
-  final out = await _execMysqlCli(body, sql);
+  final out = await _execMysqlCli(body, sql, request: request);
   final List<Map<String, dynamic>> logs = [];
 
   if (out != null) {
